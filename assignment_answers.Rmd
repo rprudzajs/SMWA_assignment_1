@@ -1,0 +1,382 @@
+---
+Group Name: "Lab 1 Group 2"
+Group Members: "Goof Hendriks, Amber Kalse, Rebecca Keijzer, Rodrigo Paceko-Rudzajs"
+Student IDs/Numbers: "2026000, 2027488, 2083269, 211197"
+GitHub Handles: "GH Handles"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+## Instructions
+
+Solutions will be turned in via GitHub Classroom.
+**Only most recent commit on the main branch when the assignment is due will be graded**.
+Your solution must use the `Rmarkdown` template provided in the assignment's repository that you cloned for this assignment.
+This means your answers will be compiled into a file called `assignment_answers.pdf`.
+Failure to follow these steps and submit `assignment_answers.pdf` in your GitHub repository along with the `assignment_answers.Rmd`, will result in a assignment grade of **zero**.
+Refer to the repository's `README.md` for instructions on how to complete the title and author fields for submission.
+
+Each group has been assigned a **group leader**.
+It is the group leaders job to "accept" the assignment via GitHub and then add all group members as collaborators to the group assignment.
+To do this, the group leader will need each member's GitHub username. 
+The group leader can add group members as follows:
+
+-   Go to their group assignment repository on GitHub
+-   Click on the Settings tab
+-   Go to 'Manage Access'
+-   Click on 'Invite teams or people'
+-   Enter the GitHub usernames of each group member, one by one, and give them 'Write' access
+-   Click 'Add <username> to this repository'
+
+Group members will then get an email to accept this invitation.
+Group members **must accept** this invitation to be able to view and contribute to the assignment.
+
+To work on this assignment, first clone the GitHub repository to your machine, see the `README.md` for more details.
+After you have cloned the repository to your machine, you can access the data for this assignment.
+Open an RStudio session and use this folder as a project.
+The data is located in the `data` sub-directory.
+Be sure to install all the necessary packages so that your solution document will run from start to finish.
+
+Remember, your goal is to communicate.
+Full credit will be given only to the correct solution which is described and/or coded clearly.
+Convoluted and obtuse descriptions/code might receive low marks, even when they are correct.
+Aim for concise solutions, as it will save you time spent on write-ups, and also help you conceptualize the key ideas you are trying to express.
+Sentence limits often apply to questions that require written answers - stick to them (or under them) to get full credit.
+
+## Context: Experiments with Advertising Effectiveness
+
+Suppose you are working at a marketing consultancy as a team of marketing analysts in the newly established (though fictitious) country of Petersville.
+Petersville is a large geographically, and is divided into 100 geographical areas, known as "Designated Market Areas" or DMAs.
+Each DMA shares common, localized, market conditions but may differ in population size.
+The citizens are generally "low mobility", meaning they rarely travel beyond the DMA they reside in, except for 10% of citizens who commute long distances into different DMAs for work.
+Furthermore, Petersville has strict privacy regulations which prevents experiments from being conducted at the unit of individual citizens by either the government or firms that operate in country.
+
+Your latest project involves studying the effectiveness of online advertising by the largest company in Petersville.
+The digital environment in Petersville can be thought of as a simplified version of what we live in and experience today.
+There is one search engine for the internet which serves online advertising as part of the search results.
+There are no other online advertising opportunities.
+The company has approached you because it wants to start using online advertising for the first time.
+In particular, they want to know whether online advertising increases consumer spending and whether it yields a positive return on investment.
+
+For this exercise you might need to use the following packages:
+
+```{r, warning= FALSE, message=FALSE}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(vtable)
+library(broom)
+library(tidyr)
+library(purrr)
+library(rsample)
+```
+
+Install them if you have not done so already.
+
+### Part 1: Experiment Design (5 points)
+
+1.  [3 points] In the meeting where your team begins to discuss how to design the experiment, a colleague suggested the following:
+
+> Let's start advertising in the largest DMAs first and see if sales increase.
+> If they do, we can roll out advertising across all DMAs.
+
+Does your colleagues proposed experiment design lead to an unbiased estimate of the average treatment effect of digital advertising?
+Explain why or why not.
+(max. 3 sentences)
+
+Answer: No, the experiment probably leads to biased estimates as the experiment only looks at the largest DMAs (selection bias).
+This could have an effect on the advertising's scope and reach, which could affect consumers behaviour in across different DMAs differently.
+
+The final experiment that your team decide to implement randomizes using geography.
+That is, some DMAs (the *treatment* markets) will have online advertising introduced and people who search from these locations see the ads, whereas other DMAs (*the control* markets) will remain with no online advertising meaning that people who search from these locations do not see any ads.
+Outcome variables will be aggregated to the geographic region.
+
+2.  [2 points] List and explain two potential shortcomings of the geography based randomization into a treatment. (max. 2 sentences)
+
+Answer: First, the results could be biased because of geographical randomization, not fully acocunting for all relevant factors between the regions.
+Secondly, the Stable Unit Treatment Value Assumption (SUTVA) might be violated as the effects of one treatmetn DMA may affect nearby DMAs
+
+### Part 2: Essential A/B Test Analytics (15 points)
+
+3.  [1 points] The data from the experiment are located in the `data/` directory. Load the data and name it `ad_experiment`. The columns in the data are as follows:
+
+-   **`geo`**: An identifier for each DMA.
+-   **`treatment_status`**: Is the DMA part of the treatment or control group.
+-   **`test_period`**: Is the point in time before the experiment begins, during the experiment or after it has concluded.
+-   **`date`**: The calendar date.
+-   **`sales`**: The amount of sales in dollars earned by the company on a given calendar day.
+-   **`cost`**: The amount of money spent on online advertising on a given calendar day.
+
+```{r}
+# Write your answer here
+library(readr)
+ad_experiment<- read_csv("data/geo_experiment_student.csv")
+View(ad_experiment)
+
+
+```
+
+4.  [2 points] Evaluate whether the randomization into treatment and control groups by geographic area was successful. Discuss your result. (max. 1 sentence)
+
+```{r}
+# Write your answer here
+ad_experiment %>%
+    filter(test_period == "pre_test") %>%
+    summarise(t_statistic = t.test(sales~treatment_status)$statistic,
+             p_value = t.test(sales ~ treatment_status)$p.value)
+
+```
+
+Based on these results, the randomization into treatment and control groups by geographic area was successful as the p-value \> 0.05, suggesting that there are no significant differences between the two groups.
+
+5.  [1 points] Using data from the test period, compute the average sales and average cost of advertising over the duration of the experiment for the treatment and control groups. Also compute the standard error for the sales. Store the data in a data set named `ad_test_period`.
+
+```{r}
+# Filter data for the test period
+ad_test_period <- ad_experiment %>%
+    filter(test_period == "test") %>%
+    # Compute averages and std error
+    group_by(treatment_status) %>%
+    summarise(average_sales = mean(sales),
+              average_cost = mean(cost),
+              sales_se = sd(sales)/sqrt(n()))
+
+
+```
+
+6.  [1 points] Create a plot that shows the difference in total sales between treatments. Include the error bars in your plot.
+
+```{r}
+# Write your answer here
+library(ggplot2)
+library(dplyr)
+
+# Create plot 
+ad_test_period %>% 
+    ggplot() + 
+    # sales averages for treatment group and control group
+    geom_bar(aes(x = treatment_status, 
+                 y = average_sales),
+             stat = "identity",
+             fill="skyblue",
+             alpha=0.7) + 
+    # create error bars 
+    geom_errorbar(aes(x = treatment_status,
+                      ymin = average_sales - sales_se,
+                      ymax = average_sales + sales_se),
+                  width = 0.4,
+                  colour = "orange",
+                  alpha=0.9) +
+    # add theme & change names
+    theme_bw() + 
+    ggtitle("Average Sales between treatments") + 
+    xlab("Treatment Group") + 
+    ylab("Average Sales") + 
+    theme(text = element_text(size = 14),
+          plot.title = element_text(hjust = 0.5))
+    
+```
+
+7.  [1 points] Write down a linear regression equation that allows you to estimate the average treatment effect of advertising on sales, where the "average" is taken over geographical areas.
+
+```{block}
+
+$$
+sales_i = \beta_0 + \beta_1 Treatment_i + \varepsilon_i 
+$$
+
+```
+
+8.  [2 points] Estimate the linear regression you outlined above and report the results.
+
+```{r}
+# Estimate linear regression model 
+
+lm_exp = ad_experiment %>% 
+  group_by(geo) %>% 
+  filter(test_period == 'test') %>% 
+  mutate(avg_sales = mean(sales))
+
+model1 <- lm(avg_sales ~ treatment_status, data = lm_exp)
+tidy(model1)
+```
+
+9.  [2 points] What is the average treatment effect of advertising on sales in your data? Is it statistically significant? (max. 2 sentences)
+
+Answer: Results indicate that the average treatment effect of sales advertisement is 96.22 dollars.
+This effect is statistically significant as the p-value is 0.004
+
+10. [3 points] After seeing these results, your manager struggles with interpreting the magnitude of the effect. They suggest that you find an alternate way to report the your estimate. (max. 4 sentences)
+    (i) Justify what alternative you will choose,
+    (ii) Write the necessary code to obtain the estimate, and
+    (iii) Interpret the result.
+
+Answer: The alternative used will be a logarithmic transformation allowing for changes in sales in percentages, providing a better understanding for the managers.
+
+```{r}
+lm_exp = ad_experiment %>% 
+  group_by(geo) %>% 
+  filter(test_period == 'test') %>% 
+  mutate(avg_sales = mean(sales))
+
+model2 <- lm(log(avg_sales) ~ treatment_status, data = lm_exp)
+tidy(model2)
+
+```
+
+Answer: The results show that the sales increase with approximately 15.11%
+
+11. [2 points] While undertaking the analysis, during a discussion over lunch a colleague from a different team suggests:
+
+> If you have data from weeks after the experiment, you should include that in your analysis too.
+
+Explain why they might have made that suggestion, and report the results of making this change to the data included in your analysis.
+Do your conclusions change?
+(max. 3 sentences)
+
+Answer: When adding data from weeks following the experiment, the data becomes more complete and gives a more precise picture of the overall impact of the treatment over time.
+
+```{r}
+lm_exp = ad_experiment %>% 
+  group_by(geo) %>% 
+  filter(test_period == 'test' | test_period == 'post_test') %>% 
+  mutate(avg_sales = mean(sales))
+
+model3 <- lm(log(sales) ~ treatment_status, data = lm_exp)
+tidy(model3)
+```
+
+Answer: Including the post-treatment data had no effect on the conclusions.
+For sales, using advertisement is still beneficial.
+However, the effect size did drop from 15.11% to 8.9%.
+
+### Part 3: CUPED (10 points)
+
+After seeing the results from your preliminary analysis, one of the senior members of the team suggest you should adopt the CUPED approach.
+In particular they suggest using total sales in the pre-test period as the variable included from pre-existing data.
+
+12. [5 points] Explain intuitively what CUPED does, and propose a pre-existing variable that is in the data which can be used in your analysis. (max 4. sentences)
+
+By utilizing extra consumer data that is unaffected by the therapy, CUPED seeks to reduce the variation of treatment effect.
+In this instance, we can account for pre-existing distinctions between the treatment and control groups by utilizing the pre-experiment sales data, with this reduction in variance, this will allow us to reach significant results with a smaller sample size or shorter time frame.
+
+13. [4 points] Report an estimate of the treatment effect using CUPED. Again, make sure the magnitude is easily interpretable by a manager.
+
+TIP: Print your estimate of $\theta$ so that if you make a mistake, we can award partial credit.
+
+```{r, solution}
+# For theta determine mean values for each DMA
+dma_data <- ad_experiment %>%
+  group_by(geo, test_period, treatment_status) %>%
+  summarize(mean_sales = mean(sales)) %>%
+  ungroup()
+
+# Create a wide format
+dma_data_wide <- dma_data %>%
+  pivot_wider(names_from = test_period, values_from = mean_sales)
+
+# Determine Theta
+theta <- cov(dma_data_wide$test, dma_data_wide$pre_test) / var(dma_data_wide$pre_test)
+
+# Transform dependent variable
+dma_data_wide <-
+    dma_data_wide %>%
+    mutate(cuped_spend = test -
+               theta*(pre_test - mean(pre_test)
+                      )
+           )
+
+# Logarithmic transformation
+dma_data_cuped <- lm(log(cuped_spend) ~ treatment_status,
+                data = dma_data_wide)
+tidy(dma_data_cuped)
+
+print(theta)
+```
+
+14. [1 point] Interpret your CUPED estimate and evaluate whether the advertising campaign increases sales based on the estimate. (max. 2 sentences)
+
+Answer: The CUPED estimate shows that the sales increase approximately with 18.3%
+
+### Part 3: Return on Investment [10 points]
+
+The next step in your analysis involves analyzing whether digital advertising should be adopted across all markets for this company.
+To do this, you need a metric that weighs up the return on investment of advertising spending (ROAS).
+Mathematically:
+
+$$
+\text{ROAS} = \frac{\text{incremental revenue}}{\text{incremental cost}} = \frac{E(\Delta R)}{E(\Delta C)}
+$$
+
+15. [3 points] Compute and report an estimate of ROAS. Interpret your estimate. (max. 2 sentences)
+
+```{r}
+# Write your answer here
+treatment_sales <- ad_experiment %>%
+    filter(treatment_status == "treatment", test_period == "test" | test_period == "post_test") %>%
+    summarise(sales = sum(sales))
+
+control_sales <- ad_experiment %>%
+    filter(treatment_status == "control", test_period == "test" | test_period =="post_test") %>%
+    summarise(sales = sum(sales))
+
+ROAS <- ((treatment_sales - control_sales - sum(ad_experiment$cost))/ sum(ad_experiment$cost))*100
+print(ROAS)
+```
+
+Answer: For each dollar spent on advertising, the company approximately generates $1.41 from it.
+
+16. [7 points, **Challenging**] To evaluate whether your estimate of ROAS is statistically significant, you want to construct a confidence interval for this estimate. (i) [5 points, challenging] Construct a 95% confidence interval for the ROAS. (ii) [2 points] Draw a conclusion about whether advertising experiment has a positive ROAS. (max. 2 sentences)
+
+HINT: There may be more than one correct way to do this.
+We recommend thinking about how you can re-sample data many times to compute a distribution of ROAS.
+
+```{r}
+# Compute function for ROAS
+compute_roas <- function(ad_experiment) { 
+    treatment_sales <- sum(ad_experiment[ad_experiment$treatment_status == "treatment", "sales"])
+    control_sales <- sum(ad_experiment[ad_experiment$treatment_status == "control", "sales"])
+    roas <- ((treatment_sales - control_sales - sum(ad_experiment$cost)) / sum(ad_experiment$cost)) * 100
+    return(roas)
+}
+# number of bootstrap sample 
+n_bootstrap <- 1000
+bootstrapped_roas <- numeric(n_bootstrap)
+
+# Perform bootstrap
+for (i in 1:n_bootstrap){
+    sampled_data <- ad_experiment[sample(nrow(ad_experiment), replace = TRUE), ]
+    bootstrapped_roas[i] <- compute_roas(sampled_data)
+}
+# Compute CI 95%
+lower_ci <- quantile(bootstrapped_roas, 0.025)
+upper_ci <- quantile(bootstrapped_roas, 0.975)
+
+cat("95% CI for ROAS:", lower_ci, "-", upper_ci, "\n")
+
+# Conclusion 
+if(lower_ci > 0) {
+    cat("The ROAS of the advertising experiment is positive.\n")
+} else {
+    cat("The ROAS of the advertising experiment is not positive.\n")
+}
+```
+
+Answer: The ROAS of the experiment is positive if the lower bound of the 95% CI for ROAS is greater than 0, if the lower bound is less than or equal to 0, it suggests that the advertising experiment does not have a positive ROAS.
+
+## Part 4: Summary & Managerial Implications (10 points)
+
+17. [10 points] Using all of the answers and analysis you have performed so far, write a "Management Summary" that details the research question, relevance, outlines the experiment performed, summarises the main findings and provides a managerial recommendation.
+
+You have a maximum of two paragraphs with at most 12 total sentences to write this summary.[^1]
+
+[^1]:  Think of this summary as the first thing that will be read by managers and analysts who are attending a meeting that you will lead which reports on the experiment conducted.
+    The meeting would be run as follows: (i) There are no slides or Powerpoint presentations, (ii) for the first 15 mins of the meeting all participants read a four page narrative memo summarizing the experiment and the results of which your Management Summary is the first page, (iii) After reading the report, the meeting will continue and attendees will be able to ask your team further questions to develop a deeper understanding of what you have done.
+    Use the tips from the document "Write like an Amazonian" that we have posted on the course website.
+    These tips are written to help staff at Amazon write concise and meaningful documents, and are helpful to ensure your writing gets to the point.
+
+Write your answer here
+
+The experiment is examining the efficacy of online advertising by the biggest business in Petersville. The experiment's objectives were to determine whether online advertising boost consumer spending and whether it is a profitable investment. This is relevant for the company as this study indicates if the company is making the right investment decisions in advertising. An A/B test was run to find out more about how effective online advertising is. Geographically randomized samples were used in this test, the treatment market saw the advertisement, whereas the control markets did not. According to the A/B test, the group who saw the advertisements on average had greater sales, approximately 15.11% more. Additionally, we found that the sales increased by 18% using CUPED approach. It can be said that the advertising does raise average consumer spending and sales. The ratio of the advertising investments returns is shown by the ROAS. The ROAS of the experiment was positive, with the company generating approx $1.41 in sales for each dollar spent in advertising, which is a positive result. Therefore, in order to achieve larger sales and higher average of sales, it is advised to continue making investments in online advertising.
